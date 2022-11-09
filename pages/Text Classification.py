@@ -161,7 +161,6 @@ if submit_selected:
 st.markdown('# Save Non-Selected to Database')
 df_not_selected = df.loc[~df['business_name'].isin(df_selected['business_name'].tolist())].copy()
 df_not_selected['selected'] = 'no'
-df_not_selected = df_not_selected.iloc[:,1:]
 st.dataframe(df_not_selected)
 
 # button

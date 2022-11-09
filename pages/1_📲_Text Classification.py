@@ -15,7 +15,7 @@ from pandas.api.types import (
     is_object_dtype,
 )
 
-st.set_page_config(layout="wide", page_title="Free Text Classification", page_icon="📈")
+st.set_page_config(layout="wide", page_title="Free Text Classification", page_icon="🎭")
 st.markdown("# Free Text Classification using Deep Learning")
 st.markdown("__Max date is 30 days from today__")
 

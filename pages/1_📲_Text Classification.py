@@ -96,7 +96,6 @@ grid_response = AgGrid(
 st.markdown('# Selected Data')
 
 # selected rows
-
 selected = pd.DataFrame(grid_response['selected_rows'])
 st.dataframe(selected)
 

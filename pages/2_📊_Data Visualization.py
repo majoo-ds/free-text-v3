@@ -71,13 +71,34 @@ dataframe['campaign_source'] = dataframe.apply(lambda row:
 
 df_filtered = dataframe.loc[(pd.to_datetime(dataframe['create_date']).dt.date >= st.session_state['start_date']) & (pd.to_datetime(dataframe['create_date']).dt.date <= st.session_state['end_date'])]
 
-st.dataframe(df_filtered)
+############### AG GRID ################
+# update and return mode
+return_mode_value = DataReturnMode.__members__["FILTERED"]
+update_mode_value = GridUpdateMode.__members__["GRID_CHANGED"]
+
+# grid options of AgGrid
+gb = GridOptionsBuilder.from_dataframe(df_filtered)
+gb.configure_pagination(enabled=True, paginationAutoPageSize=False, paginationPageSize=20)
+gridOptions = gb.build()    
+
+grid_response = AgGrid(
+    df_filtered, 
+    gridOptions=gridOptions,
+    data_return_mode=return_mode_value, 
+    update_mode=update_mode_value,
+    theme='streamlit')
+
+
+
 
 df_filtered_grouped = df_filtered.groupby(['campaign_source', 'selected'])['phone'].count().to_frame().reset_index()
 df_filtered_grouped.columns = ['campaign_source', 'selected', 'count']
 
-sunburst_fig = px.sunburst(df_filtered_grouped, path=['campaign_source', 'selected'], values='count', title='Free Text Campaign Source', 
-                            color_discrete_sequence=px.colors.qualitative.Pastel2, width=700, height=700)
+######################## DATA VISUALIZATION #########################
+st.markdown("# Campaign Performance")
+st.subheader("Sunburst Visualization")
+sunburst_fig = px.sunburst(df_filtered_grouped, path=['campaign_source', 'selected'], values='count', title=f'Date range from {st.session_state["start_date"]} to {st.session_state["end_date"]}', 
+                            color_discrete_sequence=px.colors.qualitative.Pastel2, width=600, height=600)
 
 sunburst_fig.update_traces(textinfo="label+percent parent")
 st.plotly_chart(sunburst_fig, use_container_width=True)

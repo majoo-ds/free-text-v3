@@ -70,6 +70,8 @@ dataframe['campaign_source'] = dataframe.apply(lambda row:
                             )
 
 df_filtered = dataframe.loc[(pd.to_datetime(dataframe['create_date']).dt.date >= st.session_state['start_date']) & (pd.to_datetime(dataframe['create_date']).dt.date <= st.session_state['end_date'])]
+df_filtered['create_date'] = pd.to_datetime(df_filtered['create_date'], errors='coerce')
+df_filtered['create_date'] = df_filtered['create_date'].dt.normalize()
 
 ############### AG GRID ################
 # update and return mode
@@ -95,10 +97,51 @@ df_filtered_grouped = df_filtered.groupby(['campaign_source', 'selected'])['phon
 df_filtered_grouped.columns = ['campaign_source', 'selected', 'count']
 
 ######################## DATA VISUALIZATION #########################
+
+############### SUNBURST SECTION #############
 st.markdown("# Campaign Performance")
 st.subheader("Sunburst Visualization")
 sunburst_fig = px.sunburst(df_filtered_grouped, path=['campaign_source', 'selected'], values='count', title=f'Date range from {st.session_state["start_date"]} to {st.session_state["end_date"]}', 
                             color_discrete_sequence=px.colors.qualitative.Pastel2, width=600, height=600)
 
-sunburst_fig.update_traces(textinfo="label+percent parent")
+sunburst_fig.update_traces(textinfo="label+percent parent", textfont_size=16)
 st.plotly_chart(sunburst_fig, use_container_width=True)
+
+############### LINE CHART SECTION #############
+st.subheader("Daily Counts")
+daily_grouped = df_filtered.groupby(['create_date', 'campaign_source', 'selected'])['phone'].count().to_frame().reset_index()
+
+# rename columns
+daily_grouped.columns = ['date', 'campaign_source', 'selected', 'count']
+
+daily_fig = px.line(daily_grouped, x='date', title=f'Daily Number of incoming free text campaign from{st.session_state["start_date"]} to {st.session_state["end_date"]}',
+                    y='count', color='campaign_source', color_discrete_map={'facebook': '#6495ED', 'google': '#006400'}, line_dash='selected') 
+
+daily_fig.update_traces(textposition="bottom right", texttemplate='%{text:,}', textfont_size=16)
+daily_fig.update_layout({
+'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+}, yaxis=dict(
+    showgrid=True,
+    zeroline=True,
+    showline=True,
+    showticklabels=True,
+),
+    legend=dict(
+    yanchor="top",
+    y=0.99,
+    xanchor="left",
+    x=0.99
+), width=1000)
+daily_fig.update_xaxes(
+    title_text = "Date",
+    title_standoff = 25,
+    linecolor='rgb(204, 204, 204)',
+    linewidth=2,
+    ticks='outside',
+    tickfont=dict(
+        family='Arial',
+        size=12,
+        color='rgb(82, 82, 82)',
+    ))
+st.plotly_chart(daily_fig, use_container_width=True)

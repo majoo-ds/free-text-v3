@@ -65,6 +65,7 @@ dataframe = get_bigquery()
 # data manipulation
 dataframe['campaign_source'] = dataframe.apply(lambda row: 
                                 'google' if str(row['campaign_name']).startswith('ggl')
+                                else 'tiktok' if str(row['campaign_name']).startswith('regtiktok')
                                 else 'facebook' if str(row['campaign_name']).startswith('reg')
                                 else 'undefined', axis=1
                             )
@@ -72,6 +73,9 @@ dataframe['campaign_source'] = dataframe.apply(lambda row:
 df_filtered = dataframe.loc[(pd.to_datetime(dataframe['create_date']).dt.date >= st.session_state['start_date']) & (pd.to_datetime(dataframe['create_date']).dt.date <= st.session_state['end_date'])]
 df_filtered['create_date'] = pd.to_datetime(df_filtered['create_date'], errors='coerce')
 df_filtered['create_date'] = df_filtered['create_date'].dt.normalize()
+
+# remove undefined 
+df_filtered = df_filtered.loc[df_filtered['campaign_source'] != 'undefined'].copy()
 
 ############### AG GRID ################
 # update and return mode

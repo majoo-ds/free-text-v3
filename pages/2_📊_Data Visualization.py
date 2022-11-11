@@ -112,7 +112,7 @@ sunburst_fig.update_traces(textinfo="label+percent parent", textfont_size=16)
 st.plotly_chart(sunburst_fig, use_container_width=True)
 
 ############### LINE CHART SECTION #############
-st.subheader("Daily Counts")
+st.subheader("Daily Counts All Leads")
 daily_grouped = df_filtered.groupby(['create_date', 'campaign_source', 'selected'])['phone'].count().to_frame().reset_index()
 
 # rename columns
@@ -149,3 +149,43 @@ daily_fig.update_xaxes(
         color='rgb(82, 82, 82)',
     ))
 st.plotly_chart(daily_fig, use_container_width=True)
+
+
+############### LINE CHART SECTION #############
+st.subheader("Daily Counts By Selected")
+
+daily_grouped_all = df_filtered.groupby(['create_date', 'selected'])['phone'].count().to_frame().reset_index()
+# rename columns
+daily_grouped_all.columns = ['date', 'selected', 'count']
+
+daily_fig_all = px.line(daily_grouped_all, x='date', title=f'Daily Number of incoming free text campaign from{st.session_state["start_date"]} to {st.session_state["end_date"]}',
+                    y='count', color='selected', text='count') 
+
+daily_fig_all.update_traces(textposition="bottom right", texttemplate='%{text:,}', textfont_size=16)
+daily_fig_all.update_layout({
+'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+}, yaxis=dict(
+    showgrid=True,
+    zeroline=True,
+    showline=True,
+    showticklabels=True,
+),
+    legend=dict(
+    yanchor="top",
+    y=0.99,
+    xanchor="left",
+    x=0.99
+), width=1000)
+daily_fig_all.update_xaxes(
+    title_text = "Date",
+    title_standoff = 25,
+    linecolor='rgb(204, 204, 204)',
+    linewidth=2,
+    ticks='outside',
+    tickfont=dict(
+        family='Arial',
+        size=12,
+        color='rgb(82, 82, 82)',
+    ))
+st.plotly_chart(daily_fig_all, use_container_width=True)

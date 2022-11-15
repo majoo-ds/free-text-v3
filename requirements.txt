@@ -16,7 +16,7 @@ oauthlib==3.2.1
 openpyxl==3.0.10
 pandas==1.5.0
 plotly==5.10.0
-streamlit==1.13.0
+streamlit==1.14.0
 streamlit-aggrid==0.3.3
 streamlit-authenticator==0.2.1
 XlsxWriter==3.0.3

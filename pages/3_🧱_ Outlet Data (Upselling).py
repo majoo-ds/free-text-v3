@@ -81,8 +81,8 @@ grid_response = AgGrid(
 st.markdown('# Selected Data')
 
 # selected rows
-selected = pd.DataFrame(grid_response['selected_rows'])
-st.dataframe(selected)
+df_selected = pd.DataFrame(grid_response['selected_rows'])
+st.dataframe(df_selected)
 
 # title
 st.markdown('# Downloadable Data')
@@ -91,7 +91,7 @@ st.markdown('# Downloadable Data')
 buffer = io.BytesIO()
 with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
     # Write excel with single worksheet
-    selected.to_excel(writer, index=False)
+    df_selected.to_excel(writer, index=False)
     # Close the Pandas Excel writer and output the Excel file to the buffer
     writer.save()
 

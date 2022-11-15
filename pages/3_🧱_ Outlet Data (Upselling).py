@@ -18,7 +18,7 @@ st.markdown("# Outlet Data")
 credentials = service_account.Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=["https://www.googleapis.com/auth/cloud-platform"])
 client = bigquery.Client(credentials=credentials)
 
-@st.experimental_memo(ttl=1*60*60)
+@st.experimental_memo(ttl=24*60*60)
 def get_outlet_data():
     dataframe = pd.read_csv("gs://lead-analytics-bucket/crm_db/outlet_data.csv",
         storage_options={'token': credentials})

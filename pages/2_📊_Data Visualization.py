@@ -75,7 +75,10 @@ df_filtered['create_date'] = pd.to_datetime(df_filtered['create_date'], errors='
 df_filtered['create_date'] = df_filtered['create_date'].dt.normalize()
 
 # adset
-df_filtered['adset'] = df_filtered['campaign_name'].str.split('-', expand=True)[0]
+df_filtered['adset'] = df_filtered.apply(lambda row: 
+                                        row['campaign_name'].split('-')[1] if row['campaign_source'] == 'google'
+                                        else row['campaign_name'].split('-')[0], axis=1
+                                    )
 
 # remove undefined 
 df_filtered = df_filtered.loc[df_filtered['campaign_source'] != 'undefined'].copy()

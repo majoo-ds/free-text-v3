@@ -74,6 +74,9 @@ df_filtered = dataframe.loc[(pd.to_datetime(dataframe['create_date']).dt.date >=
 df_filtered['create_date'] = pd.to_datetime(df_filtered['create_date'], errors='coerce')
 df_filtered['create_date'] = df_filtered['create_date'].dt.normalize()
 
+# adset
+df_filtered['adset'] = df_filtered['campaign_name'].str.split('-', expand=True)[0]
+
 # remove undefined 
 df_filtered = df_filtered.loc[df_filtered['campaign_source'] != 'undefined'].copy()
 
@@ -97,19 +100,28 @@ grid_response = AgGrid(
 
 
 
-df_filtered_grouped = df_filtered.groupby(['campaign_source', 'selected'])['phone'].count().to_frame().reset_index()
-df_filtered_grouped.columns = ['campaign_source', 'selected', 'count']
+df_filtered_grouped = df_filtered.groupby(['campaign_source','adset', 'selected'])['phone'].count().to_frame().reset_index()
+df_filtered_grouped.columns = ['campaign_source', 'adset', 'selected', 'count']
 
 ######################## DATA VISUALIZATION #########################
 
-############### SUNBURST SECTION #############
+############### SUNBURST SECTION PART 1 #############
 st.markdown("# Campaign Performance")
-st.subheader("Sunburst Visualization")
+st.subheader("Sunburst Visualization (Campaign Level)")
 sunburst_fig = px.sunburst(df_filtered_grouped, path=['campaign_source', 'selected'], values='count', title=f'Date range from {st.session_state["start_date"]} to {st.session_state["end_date"]}', 
                             color_discrete_sequence=px.colors.qualitative.Pastel2, width=600, height=600)
 
 sunburst_fig.update_traces(textinfo="label+percent parent", textfont_size=16)
 st.plotly_chart(sunburst_fig, use_container_width=True)
+
+############### SUNBURST SECTION PART 1 #############
+st.subheader("Sunburst Visualization (Adset Level)")
+sunburst_fig_adset = px.sunburst(df_filtered_grouped, path=['campaign_source', 'adset', 'selected'], values='count', title=f'Date range from {st.session_state["start_date"]} to {st.session_state["end_date"]}', 
+                            color_discrete_sequence=px.colors.qualitative.Pastel2, width=600, height=600)
+
+sunburst_fig_adset.update_traces(textinfo="label+percent parent", textfont_size=16)
+st.plotly_chart(sunburst_fig_adset, use_container_width=True)
+
 
 ############### LINE CHART SECTION #############
 st.subheader("Daily Counts All Leads")

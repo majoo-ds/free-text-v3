@@ -13,12 +13,127 @@ import plotly.express as px
 st.set_page_config(layout="wide", page_title="Free Text Analysis", page_icon="🎭")
 st.markdown("# Free Text Data Visualization")
 
-# Big QUERY
+############ Big QUERY
 # Create API client.
 credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"]
+    st.secrets["gcp_service_account"], scopes=["https://www.googleapis.com/auth/cloud-platform"]
 )
 client = bigquery.Client(credentials=credentials)
+
+################## GCS
+@st.experimental_memo(ttl=24*60*60)
+def fetch_db_crm_1():
+        dates = ["submit_at", "assign_at", "approved_paid_at", "created_payment","last_update"]
+        dtypes = {
+            "mt_preleads_code": "category",
+            "mt_leads_code": "category",
+            "type": "category",
+            "campaign_name": "category",
+            "assigner": "category",
+            "email_sales": "category",
+            "m_status_code": "category",
+            "outlet_name": "category",
+            "owner_phone": "category",
+            "rating": "float32",
+            "pic_name": "category",
+            "full_name": "category",
+            "status": "uint8",
+            "m_sourceentry_code": "category",
+            "counter_followup": "float32",
+            "counter_meeting": "float32",
+            "channel_name": "category",
+            "reject_reason": "category",
+            "reject_note": "category"
+        }
+        
+        data = pd.read_csv("gs://lead-analytics-bucket/crm_db/leads_crm.csv",
+            storage_options={'token': credentials}, 
+            low_memory=False, 
+            parse_dates=dates, 
+            dtype=dtypes) # read data frame from csv file
+
+        dataframe = data
+
+        # normalize date
+        dataframe["submit_at"] = dataframe["submit_at"].dt.normalize()
+        dataframe["assign_at"] = dataframe["assign_at"].dt.normalize()
+        dataframe["approved_paid_at"] = dataframe["approved_paid_at"].dt.normalize()
+        dataframe["created_payment"] = dataframe["created_payment"].dt.normalize()
+        dataframe["last_update"] = dataframe["last_update"]
+
+        # cold, hot, warm
+        dataframe["leads_potensial_category"] = dataframe.apply(lambda row: 
+                                                                        "Cold Leads" if row["rating"] == 1 or row["rating"] == 0
+                                                                        else "Warm Leads" if row["rating"] == 2 or row["rating"] == 3
+                                                                        else "Hot Leads" if row["rating"] == 4 or row["rating"] == 5
+                                                                        else "Null", axis=1)
+        # hw by rating
+        dataframe["hw_by_rating"] = dataframe.apply(lambda row:
+                                                    "hw" if row["leads_potensial_category"] == "Warm Leads"
+                                                    else "hw" if row["leads_potensial_category"] == "Hot Leads"
+                                                    else "cold" if row["leads_potensial_category"] == "Cold Leads"
+                                                    else "Null", axis=1)
+
+
+        # unnassign, backlog, assigned, junked
+        dataframe["status_code"] = dataframe.apply(lambda row:
+                                                            "unassigned" if row["status"] == 1
+                                                            else "backlog" if row["status"] == 2
+                                                            else "assigned" if row["status"] == 3
+                                                            else "junked", axis=1)
+
+        # total activity
+        dataframe["total_activity"] = dataframe["counter_meeting"] + dataframe["counter_followup"]
+
+        # pipeline
+        dataframe["pipeline_by_activity"] = dataframe.apply(lambda row:
+                                                        "Pipeline Hot" if "INVOICE" in str(row["m_status_code"])
+                                                        else "Pipeline Hot" if row["leads_potensial_category"] == "Hot Leads"
+                                                        else "Pipeline Warm" if row["total_activity"] >=2
+                                                        else "Pipeline Cold" if row["total_activity"] <=1
+                                                        else "Pipeline Null", axis=1)
+
+        # hw by activity
+        dataframe["hw_by_activity"] = dataframe.apply(lambda row:
+                                                        "hw" if row["pipeline_by_activity"] == "Pipeline Hot"
+                                                        else "hw" if row["pipeline_by_activity"] == "Pipeline Warm"
+                                                        else "cold" if row["pipeline_by_activity"] == "Pipeline Cold"
+                                                        else "Null", axis=1)
+                                                                
+
+        # deal or no deal
+        dataframe["deal"] = dataframe.apply(lambda row: 
+                                                    "deal" if "PAYMENT" in str(row["m_status_code"])
+                                                    else "pipeline" if "INVOICE" in str(row["m_status_code"])
+                                                    else "deal" if row["m_status_code"] == "PAID"
+                                                    else "leads", axis=1)
+
+        
+
+        # filter only campaign and retouch
+        # dataframe = dataframe.loc[dataframe["type"] == "campaign"].copy()
+
+        
+        
+
+        # remove duplicates
+        dataframe.drop_duplicates(subset=["mt_preleads_code"], inplace=True)
+        
+        return dataframe
+
+######################## CRM DATA FRAME #########################
+# run function
+df_all = fetch_db_crm_1()
+
+
+# formatting phone number
+df_all['owner_phone'] = df_all['owner_phone'].astype('str')
+df_all["owner_phone"] = df_all.apply(lambda row:
+                                                "62" + row["owner_phone"][:] if row["owner_phone"].startswith("8")
+                                                else row["owner_phone"].replace("0", "62", 1) if row["owner_phone"].startswith("0")
+                                                else row["owner_phone"].replace(row["owner_phone"][0:3], "62", 1) if row["owner_phone"].startswith("620")
+                                                else row["owner_phone"], axis=1)
+
 
 ################################ DATE RANGE SELECTION #################################
 # select date
@@ -74,6 +189,13 @@ df_filtered = dataframe.loc[(pd.to_datetime(dataframe['create_date']).dt.date >=
 df_filtered['create_date'] = pd.to_datetime(df_filtered['create_date'], errors='coerce')
 df_filtered['create_date'] = df_filtered['create_date'].dt.normalize()
 
+# formatting phone number
+df_filtered["phone"] = df_filtered.apply(lambda row:
+                                                "62" + row["phone"][:] if row["phone"].startswith("8")
+                                                else row["phone"].replace("0", "62", 1) if row["phone"].startswith("0")
+                                                else row["phone"].replace(row["phone"][0:3], "62", 1) if row["phone"].startswith("620")
+                                                else row["phone"], axis=1)
+
 # adset
 df_filtered['adset'] = df_filtered.apply(lambda row: 
                                         row['campaign_name'].split('-')[1] if row['campaign_source'] == 'google'
@@ -106,6 +228,27 @@ grid_response = AgGrid(
 df_filtered_grouped = df_filtered.groupby(['campaign_source','adset', 'selected'])['phone'].count().to_frame().reset_index()
 df_filtered_grouped.columns = ['campaign_source', 'adset', 'selected', 'count']
 
+
+############################### MERGE CRM AND FREE TEXT DATA #############################
+# slicing crm data based on date filtered
+df_all_slice = df_all.loc[(df_all['submit_at'].dt.date >= st.session_state['start_date']) & (df_all['submit_at'].dt.date <= st.session_state['end_date']), ['mt_leads_code', 'owner_phone', 'm_status_code', 'deal']].copy()
+
+
+# merge dataframe
+df_merged = pd.merge(df_filtered, df_all_slice, how='left', right_on='owner_phone', left_on='phone')
+# remove duplicates on mt_leads_code
+df_merged.drop_duplicates(subset=['mt_leads_code'], inplace=True)
+# remove null values
+df_merged = df_merged.loc[df_merged['mt_leads_code'].notnull()].copy()
+
+####### DATAFRAME I
+df_merged_grouped = df_merged.groupby(['adset', 'selected', 'm_status_code'])['mt_leads_code'].count().to_frame().reset_index()
+df_merged_grouped.columns = ['adset', 'selected', 'status', 'count']
+
+####### DATAFRAME II
+df_merged_grouped_deal = df_merged.groupby(['adset', 'selected', 'deal'])['mt_leads_code'].count().to_frame().reset_index()
+df_merged_grouped_deal.columns = ['adset', 'selected', 'deal', 'count']
+
 ######################## DATA VISUALIZATION #########################
 
 ############### SUNBURST SECTION PART 1 #############
@@ -117,7 +260,7 @@ sunburst_fig = px.sunburst(df_filtered_grouped, path=['campaign_source', 'select
 sunburst_fig.update_traces(textinfo="label+percent parent", textfont_size=16)
 st.plotly_chart(sunburst_fig, use_container_width=True)
 
-############### SUNBURST SECTION PART 1 #############
+############### SUNBURST SECTION PART 2 #############
 st.subheader("Sunburst Visualization (Adset Level)")
 sunburst_fig_adset = px.sunburst(df_filtered_grouped, path=['campaign_source', 'adset', 'selected'], values='count', title=f'Date range from {st.session_state["start_date"]} to {st.session_state["end_date"]}', 
                             color_discrete_sequence=px.colors.qualitative.Pastel2, width=600, height=600)
@@ -125,6 +268,24 @@ sunburst_fig_adset = px.sunburst(df_filtered_grouped, path=['campaign_source', '
 sunburst_fig_adset.update_traces(textinfo="label+percent parent", textfont_size=16)
 st.plotly_chart(sunburst_fig_adset, use_container_width=True)
 
+############### SUNBURST SECTION PART 3 #############
+st.subheader("Sunburst Visualization (Current Lead Status)")
+st.write(f"CRM Data Updated At: {df_all.sort_values(by='last_update', ascending=False).iloc[0]['last_update']}")
+sunburst_fig_status = px.sunburst(df_merged_grouped, path=['adset', 'status'], values='count', title=f'Date range from {st.session_state["start_date"]} to {st.session_state["end_date"]}', 
+                            color_discrete_sequence=px.colors.qualitative.Pastel2, width=600, height=600)
+
+sunburst_fig_status.update_traces(textinfo="label+percent parent", textfont_size=16)
+st.plotly_chart(sunburst_fig_status, use_container_width=True)
+
+############### SUNBURST SECTION PART 4 #############
+st.subheader("Sunburst Visualization (Deal Status)")
+st.write(f"CRM Data Updated At: {df_all.sort_values(by='last_update', ascending=False).iloc[0]['last_update']}")
+
+sunburst_fig_deal = px.sunburst(df_merged_grouped_deal, path=['adset', 'deal'], values='count', title=f'Date range from {st.session_state["start_date"]} to {st.session_state["end_date"]}', 
+                            color_discrete_sequence=px.colors.qualitative.Pastel2, width=600, height=600)
+
+sunburst_fig_deal.update_traces(textinfo="label+percent parent", textfont_size=16)
+st.plotly_chart(sunburst_fig_deal, use_container_width=True)
 
 ############### LINE CHART SECTION #############
 st.subheader("Daily Counts All Leads")

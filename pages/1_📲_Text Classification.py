@@ -159,7 +159,7 @@ df_selected = df_selected.iloc[:,1:]
 st.dataframe(df_selected)
 
 # button
-submit_selected = st.button('Save to DB', key='11')
+submit_selected = st.button('Save to DB', key='3')
 
 if submit_selected:
     pandas_gbq.to_gbq(df_selected, "free_text_v3.all_status",
@@ -172,7 +172,7 @@ df_not_selected['selected'] = 'no'
 st.dataframe(df_not_selected)
 
 # button
-submit_not_selected = st.button('Save to DB', key='2')
+submit_not_selected = st.button('Save to DB', key='4')
 
 if submit_not_selected:
     pandas_gbq.to_gbq(df_not_selected, "free_text_v3.all_status",

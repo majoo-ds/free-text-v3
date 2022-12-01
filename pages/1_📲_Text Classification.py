@@ -159,7 +159,7 @@ df_selected = df_selected.iloc[:,1:]
 st.dataframe(df_selected)
 
 # button
-submit_selected = st.button('Save to DB', key='1')
+submit_selected = st.button('Save to DB', key='11')
 
 if submit_selected:
     pandas_gbq.to_gbq(df_selected, "free_text_v3.all_status",

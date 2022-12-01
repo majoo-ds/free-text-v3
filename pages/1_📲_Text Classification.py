@@ -33,11 +33,20 @@ client = bigquery.Client(credentials=credentials)
 url = 'https://majoo.id/api/report/integration?'
 
 
+# end date selection
+def enddate(date):
+    if date.day <=3:
+        return datetime.datetime.today()
+    else:
+        return datetime.datetime.today() + datetime.timedelta(-1)
+        
+run_enddate = enddate(datetime.datetime.today())
+
 # select date
 with st.sidebar:
     st.markdown(" #### Date Selection")
-    select_start_date = st.date_input("Start date", value=datetime.datetime.today().replace(day=1))
-    select_end_date = st.date_input("Start date", value=datetime.datetime.today() + datetime.timedelta(-1))
+    select_start_date = st.date_input("Start date", value=datetime.datetime.today().replace(day=1), key=1)
+    select_end_date = st.date_input("End date", value=run_enddate, key=2)
 
 
 ############ session state

@@ -136,11 +136,30 @@ df_all["owner_phone"] = df_all.apply(lambda row:
 
 
 ################################ DATE RANGE SELECTION #################################
+# end date selection
+def enddate(date):
+    if date.day <=3:
+        return datetime.datetime.today()+ datetime.timedelta(-3)
+    else:
+        return datetime.datetime.today() + datetime.timedelta(-1)
+        
+run_enddate = enddate(datetime.datetime.today())
+
+# start date selection
+def startdate(date):
+    if date.day <=3:
+        return datetime.datetime.today() + datetime.timedelta(-30)
+    else:
+        return datetime.datetime.today().replace(day=1)
+
+run_startdate = startdate(datetime.datetime.today())
+
+
 # select date
 with st.sidebar:
     st.markdown(" #### Date Selection")
-    select_start_date = st.date_input("Start date", value=datetime.datetime.today().replace(day=1))
-    select_end_date = st.date_input("Start date", value=datetime.datetime.today() + datetime.timedelta(-1))
+    select_start_date = st.date_input("Start date", value=run_startdate)
+    select_end_date = st.date_input("End date", value=run_enddate)
 
 ############ session state
 # initiate session_state for date selection
@@ -189,7 +208,10 @@ df_filtered = dataframe.loc[(pd.to_datetime(dataframe['create_date']).dt.date >=
 df_filtered['create_date'] = pd.to_datetime(df_filtered['create_date'], errors='coerce')
 df_filtered['create_date'] = df_filtered['create_date'].dt.normalize()
 
+
+
 # formatting phone number
+df_filtered['phone'] = df_filtered['phone'].astype('str')
 df_filtered["phone"] = df_filtered.apply(lambda row:
                                                 "62" + row["phone"][:] if row["phone"].startswith("8")
                                                 else row["phone"].replace("0", "62", 1) if row["phone"].startswith("0")
@@ -204,6 +226,11 @@ df_filtered['adset'] = df_filtered.apply(lambda row:
 
 # remove undefined 
 df_filtered = df_filtered.loc[df_filtered['campaign_source'] != 'undefined'].copy()
+
+# length of filtered data
+len_filtered = len(df_filtered)
+# lenght of unique numbers
+len_unique = df_filtered['phone'].nunique()
 
 ############### AG GRID ################
 # update and return mode
@@ -240,6 +267,12 @@ df_merged = pd.merge(df_filtered, df_all_slice, how='left', right_on='owner_phon
 df_merged.drop_duplicates(subset=['mt_leads_code'], inplace=True)
 # remove null values
 df_merged = df_merged.loc[df_merged['mt_leads_code'].notnull()].copy()
+# length of merged data (into CRM)
+len_crm = len(df_merged)
+# length of deal data
+len_deal = len(df_merged.loc[df_merged['deal'] == 'deal'])
+# length of pipeline
+len_pipeline = len(df_merged.loc[df_merged['deal'] == 'pipeline'])
 
 ####### DATAFRAME I
 df_merged_grouped = df_merged.groupby(['adset', 'selected', 'm_status_code'])['mt_leads_code'].count().to_frame().reset_index()
@@ -250,9 +283,21 @@ df_merged_grouped_deal = df_merged.groupby(['adset', 'selected', 'deal'])['mt_le
 df_merged_grouped_deal.columns = ['adset', 'selected', 'deal', 'count']
 
 ######################## DATA VISUALIZATION #########################
+st.markdown("# Campaign Performance")
+st.markdown(f'Date range from __{st.session_state["start_date"]}__ to __{st.session_state["end_date"]}__')
+# metric cards in columns
+col1, col2, col3, col4, col5 = st.columns(5)
+
+# metrics
+col1.metric("All Text Campaigns", value=f"{len_filtered:,}")
+col2.metric("Unique Phone Numbers", value=f"{len_unique:,}")
+col3.metric("Campaign-to-CRM", value=f"{len_crm:,}")
+col4.metric("CRM-to-Pipeline", value=f"{len_pipeline:,}")
+col5.metric("CRM-to-Deal", value=f"{len_deal:,}")
+st.markdown(f"Deal Conversion: __{len_deal/len_filtered:.2%}__")
 
 ############### SUNBURST SECTION PART 1 #############
-st.markdown("# Campaign Performance")
+
 st.subheader("Sunburst Visualization (Campaign Level)")
 sunburst_fig = px.sunburst(df_filtered_grouped, path=['campaign_source', 'selected'], values='count', title=f'Date range from {st.session_state["start_date"]} to {st.session_state["end_date"]}', 
                             color_discrete_sequence=px.colors.qualitative.Pastel2, width=600, height=600)
